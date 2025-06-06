@@ -257,6 +257,7 @@ def ask_koolbox():
         "You will describe what the card is about and answer the question "
         "based on this and come up with a positive answer. "
         "Keep it concise and strip all markup styling.\n\n"
+        "If user is asking in chinese, please use chinese zh-hk to reply."
         f"Question: {q}"
     )
 
