@@ -35,15 +35,15 @@ def ask_koolbox():
         st.warning("Please type a question first.")
         return
 
-    # Store question
+    # store question
     st.session_state.question = q
 
-    # Draw a random card
+    # draw a random card
     key = random.choice(list(cards.keys()))
     st.session_state.card_key = key
     card = cards[key]
 
-    # Build prompt for text answer
+    # build prompt
     prompt = (
         f"{card['title']}\n"
         f"{card['content']}\n\n"
@@ -54,29 +54,25 @@ def ask_koolbox():
         f"Question: {q}"
     )
 
-    # Call Gemini for text answer
-    try:
-        res = client.models.generate_content(
-            model="gemini-1.5-flash",  # Text-capable model
-            config=types.GenerateContentConfig(system_instruction=prompt),
-            contents=q
-        )
-        st.session_state.answer = res.text
-    except Exception as e:
-        st.error(f"Error generating text answer: {str(e)}")
-        return
+    # call Gemini for text answer
+    res = client.models.generate_content(
+        model="gemini-1.5-flash",  # Use a model that supports text generation
+        config=types.GenerateContentConfig(system_instruction=prompt),
+        contents=q
+    )
+    # store the text answer
+    st.session_state.answer = res.text
 
-    # Call Gemini for image generation based on the answer
+    # call Gemini for image generation
     try:
-        image_prompt = f"Create a visual representation of the following concept: {st.session_state.answer}"
         image_res = client.models.generate_content(
             model="gemini-2.0-flash-preview-image-generation",  # Replace with actual image-capable model
-            contents=image_prompt,
+            contents=st.session_state.answer,
             config=types.GenerateContentConfig(
-                response_modalities=['IMAGE']  # Request only image output
+                response_modalities=['TEXT', 'IMAGE']
             )
         )
-        # Extract image data
+        # store the generated image
         for part in image_res.candidates[0].content.parts:
             if part.inline_data is not None:
                 st.session_state.generated_image = part.inline_data.data
@@ -93,6 +89,7 @@ def new_session():
     reset()
 
 # ─── Main UI ────────────────────────────────────────────────────────────────────
+# If we already have an answer, show the card, question, answer, and image + New-Session
 if "answer" in st.session_state:
     card = cards[st.session_state.card_key]
 
@@ -101,12 +98,12 @@ if "answer" in st.session_state:
 
     st.markdown("---")
     st.markdown(f"**Your question:** {st.session_state.question}")
-
-    # Display the generated image
+    
+    # Display only the generated image
     if "generated_image" in st.session_state and st.session_state.generated_image:
         try:
             image = Image.open(BytesIO(st.session_state.generated_image))
-            st.image(image, caption="Visual Representation", use_column_width=True)
+            st.image(image, caption="Generated Image", use_column_width=True)
         except Exception as e:
             st.error(f"Error displaying image: {str(e)}")
     else:
@@ -116,6 +113,7 @@ if "answer" in st.session_state:
     st.button("🔄 New Session", on_click=new_session)
 
 else:
+    # No answer yet → show the question input & Ask button
     st.text_area(
         "Ask KoolBox…",
         key="question_input",
