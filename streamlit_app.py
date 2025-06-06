@@ -283,7 +283,7 @@ def ask_koolbox():
     try:
         image_prompt = f"Create a visual representation of the following concept: {st.session_state.answer}"
         image_res = client.models.generate_content(
-            model="gemini-2.0-flash-preview-image-generation",  # Your image-generative model
+            model="gemini-2.0-flash-preview-image-generation",  # Image-generative model
             contents=image_prompt,
             config=types.GenerateContentConfig(
                 response_modalities=['IMAGE', 'TEXT']  # Required by the model
@@ -314,6 +314,10 @@ if "answer" in st.session_state:
 
     st.markdown("---")
     st.markdown(f"**Your question:** {st.session_state.question}")
+
+    # Display the text answer
+    st.markdown("### 💡 Answer")
+    st.write(st.session_state.answer)
 
     # Display the generated image
     if "generated_image" in st.session_state and st.session_state.generated_image:
