@@ -230,36 +230,68 @@ cards = {
 st.set_page_config(page_title="🎴 KoolBox", layout="centered")
 st.title("🎴 KoolBox")
 
-# ─── Draw new card on button press ─────────────────────────────────────────────
-if st.button("🎲 Draw New Card"):
-    st.session_state.card_key = random.choice(list(cards.keys()))
-    st.session_state.answer = None
+# ─── Reset function ─────────────────────────────────────────────────────────────
+def reset():
+    for key in ("card_key", "question", "answer"):
+        if key in st.session_state:
+            del st.session_state[key]
 
-# ─── If a card is drawn, show it ───────────────────────────────────────────────
-if "card_key" in st.session_state:
-    card = cards[st.session_state.card_key]
-    st.subheader(card["title"])
-    st.write(card["content"])
+# ─── Step 1: Ask a question ─────────────────────────────────────────────────────
+if "card_key" not in st.session_state:
 
-    # question & answer
-    question = st.text_area("Ask KoolBox…", height=80)
-    if st.button("Get Answer") and question.strip():
-        prompt = (
-            f"{card['title']}\n{card['content']}\n\n"
-            "You will describe what the card is about and answer the question "
-            "based on this and come up with a positive answer. "
-            "Keep it concise and strip all markup styling.\n\n"
-            f"Question: {question}"
-        )
-        res = client.models.generate_content(
-            model="gemini-2.0-flash",
-            config=types.GenerateContentConfig(system_instruction=prompt),
-            contents=question
-        )
-        st.session_state.answer = res.text
+    # input box for the user's question
+    q = st.text_area("Ask KoolBox…", height=100, key="question_input")
 
-    if st.session_state.get("answer"):
-        st.markdown("### 💡 Answer")
-        st.write(st.session_state.answer)
-else:
-    st.info("Click **Draw&nbsp;New&nbsp;Card** to begin!")  # show hint before drawing
+    # when clicked, pick a card + generate answer
+    if st.button("🗣️ Ask KoolBox"):
+
+        if not q.strip():
+            st.warning("Please type a question first.")
+        else:
+            # store question
+            st.session_state.question = q.strip()
+
+            # draw random card
+            key = random.choice(list(cards.keys()))
+            st.session_state.card_key = key
+            card = cards[key]
+
+            # build prompt
+            prompt = (
+                f"{card['title']}\n{card['content']}\n\n"
+                "You will describe what the card is about and answer the question "
+                "based on this and come up with a positive answer. "
+                "Keep it concise and strip all markup styling.\n\n"
+                f"Question: {q.strip()}"
+            )
+
+            # call Gemini
+            res = client.models.generate_content(
+                model="gemini-2.0-flash",
+                config=types.GenerateContentConfig(system_instruction=prompt),
+                contents=q.strip()
+            )
+            st.session_state.answer = res.text
+
+            # rerun to show results
+            st.experimental_rerun()
+
+    st.stop()  # stops here until session_state.card_key is set
+
+# ─── Step 2: Show card + answer ─────────────────────────────────────────────────
+card = cards[st.session_state.card_key]
+
+st.subheader(card["title"])
+st.write(card["content"])
+
+st.markdown("---")
+st.markdown(f"**Your question:** {st.session_state.question}")
+
+st.markdown("### 💡 Answer")
+st.write(st.session_state.answer)
+
+# ─── New Session button ─────────────────────────────────────────────────────────
+st.markdown("---")
+if st.button("🔄 New Session"):
+    reset()
+    st.experimental_rerun()
