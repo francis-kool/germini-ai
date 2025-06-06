@@ -6,10 +6,10 @@ from google import genai
 from google.genai import types
 
 # ─── Load your API key ──────────────────────────────────────────────────────────
-load_dotenv()  # for local dev (.env)
+load_dotenv()  # for local dev via .env
 API_KEY = os.getenv("GEMINI_API_KEY")
 if not API_KEY:
-    st.error("🚨 GEMINI_API_KEY not set! Check your .env or Streamlit secrets.")
+    st.error("🚨 GEMINI_API_KEY not set! Check .env or Streamlit Secrets.")
     st.stop()
 
 client = genai.Client(api_key=API_KEY)
