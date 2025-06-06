@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-# ─── Load your API key ──────────────────────────────────────────────────────────
-load_dotenv()  # for local dev via .env
+# ─── Load API Key ───────────────────────────────────────────────────────────────
+load_dotenv()  # for local dev (.env)
 API_KEY = os.getenv("GEMINI_API_KEY")
 if not API_KEY:
     st.error("🚨 GEMINI_API_KEY not set! Check .env or Streamlit Secrets.")
@@ -14,7 +14,7 @@ if not API_KEY:
 
 client = genai.Client(api_key=API_KEY)
 
-# ─── Your 52 cards dict ─────────────────────────────────────────────────────────
+# ─── Your 52-card dict ────────────────────────────────────────────────────────────
 cards = {
   "1": {
     "title": "First Step",
@@ -230,12 +230,51 @@ cards = {
 st.set_page_config(page_title="🎴 KoolBox", layout="centered")
 st.title("🎴 KoolBox")
 
-# ─── Reset callback ─────────────────────────────────────────────────────────────
+# ─── Reset State ─────────────────────────────────────────────────────────────────
 def reset():
-    for k in ["question", "card_key", "answer"]:
+    for k in ["question_input", "question", "card_key", "answer"]:
         st.session_state.pop(k, None)
 
-# ─── 1) If we have an answer, show it and the “New Session” form ──────────────
+# ─── Ask-button callback ─────────────────────────────────────────────────────────
+def ask_koolbox():
+    q = st.session_state.question_input.strip()
+    if not q:
+        st.warning("Please type a question first.")
+        return
+
+    # store question
+    st.session_state.question = q
+
+    # draw a random card
+    key = random.choice(list(cards.keys()))
+    st.session_state.card_key = key
+    card = cards[key]
+
+    # build prompt
+    prompt = (
+        f"{card['title']}\n"
+        f"{card['content']}\n\n"
+        "You will describe what the card is about and answer the question "
+        "based on this and come up with a positive answer. "
+        "Keep it concise and strip all markup styling.\n\n"
+        f"Question: {q}"
+    )
+
+    # call Gemini
+    res = client.models.generate_content(
+        model="gemini-2.0-flash",
+        config=types.GenerateContentConfig(system_instruction=prompt),
+        contents=q
+    )
+    # store the answer
+    st.session_state.answer = res.text
+
+# ─── New-session callback ────────────────────────────────────────────────────────
+def new_session():
+    reset()
+
+# ─── Main UI ────────────────────────────────────────────────────────────────────
+# If we already have an answer, show the card, question & answer + New-Session
 if "answer" in st.session_state:
     card = cards[st.session_state.card_key]
 
@@ -248,48 +287,14 @@ if "answer" in st.session_state:
     st.write(st.session_state.answer)
 
     st.markdown("---")
-    # New Session as a form with a single button
-    with st.form("new_session_form", clear_on_submit=True):
-        new_sess = st.form_submit_button("🔄 New Session")
-        if new_sess:
-            reset()
-    st.stop()
+    st.button("🔄 New Session", on_click=new_session)
 
-# ─── 2) Otherwise show the “Ask KoolBox” form ──────────────────────────────────
-with st.form("ask_form", clear_on_submit=False):
-    q = st.text_area("Ask KoolBox…", height=120)
-    submit = st.form_submit_button("🗣️ Ask KoolBox")
-
-    if submit:
-        if not q.strip():
-            st.warning("Please type a question first.")
-        else:
-            # store question
-            st.session_state.question = q.strip()
-
-            # draw a random card
-            key = random.choice(list(cards.keys()))
-            st.session_state.card_key = key
-            card = cards[key]
-
-            # build prompt
-            prompt = (
-                f"{card['title']}\n"
-                f"{card['content']}\n\n"
-                "You will describe what the card is about and answer the question "
-                "based on this and come up with a positive answer. "
-                "Keep it concise and strip all markup styling.\n\n"
-                f"Question: {q.strip()}"
-            )
-
-            # call Gemini
-            res = client.models.generate_content(
-                model="gemini-2.0-flash",
-                config=types.GenerateContentConfig(system_instruction=prompt),
-                contents=q.strip()
-            )
-
-            # store the answer
-            st.session_state.answer = res.text
-
-            # no need for explicit rerun—Streamlit will re-render in “answer” branch
+else:
+    # No answer yet → show the question input & Ask button
+    st.text_area(
+        "Ask KoolBox…",
+        key="question_input",
+        height=120,
+        placeholder="E.g. How can I improve my focus today?"
+    )
+    st.button("🗣️ Ask KoolBox", on_click=ask_koolbox)
