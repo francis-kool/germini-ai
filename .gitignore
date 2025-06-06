@@ -1,0 +1,5 @@
+# ignore local env
+.env
+
+# ignore Streamlit secrets if you choose not to commit them
+.streamlit/secrets.toml
