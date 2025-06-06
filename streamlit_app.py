@@ -260,7 +260,7 @@ def ask_koolbox():
     prompt = (
         f"{card['title']}\n"
         f"{card['content']}\n\n"
-        "Provide a brief takeaway (1-2 sentences) summarizing the card's theme, followed by an answer to the question based on the card. "
+        "Provide a brief takeaway (1-2 sentences) summarizing the card's theme, followed by 'Answer to question:' and an answer to the question based on the card. "
         "Keep both concise and strip all markup styling. "
         "If the user asks in Chinese, reply in Chinese zh-hk."
         f"\n\nTakeaway:\nAnswer to question: {q}"
@@ -269,15 +269,22 @@ def ask_koolbox():
     # Call Gemini for text answer and takeaway
     try:
         res = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-2.5-flash-preview-05-20",
             config=types.GenerateContentConfig(system_instruction=prompt),
             contents=q
         )
         # Split response into takeaway and answer
         response_text = res.text
-        takeaway, answer = response_text.split("Answer to question:", 1)
-        st.session_state.takeaway = takeaway.replace("Takeaway:", "").strip()
-        st.session_state.answer = answer.strip()
+        if "Answer to question:" in response_text:
+            takeaway, answer = response_text.split("Answer to question:", 1)
+            st.session_state.takeaway = takeaway.replace("Takeaway:", "").strip()
+            st.session_state.answer = answer.strip()
+        else:
+            st.session_state.takeaway = "Unable to generate takeaway due to response format."
+            st.session_state.answer = response_text.strip()
+            st.warning("Response format issue: No 'Answer to question:' delimiter found.")
+            # Debug: Log the response
+            # st.write(f"Debug: Raw response: {response_text}")
     except Exception as e:
         st.error(f"Error generating text answer or takeaway: {str(e)}")
         return
