@@ -234,7 +234,7 @@ st.title("🎴 KoolBox")
 
 # ─── Reset State ─────────────────────────────────────────────────────────────────
 def reset():
-    for k in ["question_input", "question", "card_key", "answer", "generated_image"]:
+    for k in ["question_input", "question", "card_key", "answer", "takeaway", "generated_image"]:
         st.session_state.pop(k, None)
 
 # ─── Ask-button callback ─────────────────────────────────────────────────────────
@@ -249,44 +249,47 @@ def ask_koolbox():
 
     # Draw a random card
     try:
-        key = random.choice(list(cards.keys()))  # Ensure cards is accessible
+        key = random.choice(list(cards.keys()))
         st.session_state.card_key = key
         card = cards[key]
     except NameError as e:
         st.error(f"Error accessing cards dictionary: {str(e)}")
         return
 
-    # Build prompt for text answer
+    # Build prompt for text answer and takeaway
     prompt = (
         f"{card['title']}\n"
         f"{card['content']}\n\n"
-        "You will describe what the card is about and answer the question "
-        "based on this and come up with a positive answer. "
-        "Keep it concise and strip all markup styling.\n\n"
-        "If user is asking in Chinese, please use Chinese zh-hk to reply."
-        f"Question: {q}"
+        "Provide a brief takeaway (1-2 sentences) summarizing the card's theme, followed by an answer to the question based on the card. "
+        "Keep both concise and strip all markup styling. "
+        "If the user asks in Chinese, reply in Chinese zh-hk."
+        f"\n\nTakeaway:\nAnswer to question: {q}"
     )
 
-    # Call Gemini for text answer
+    # Call Gemini for text answer and takeaway
     try:
         res = client.models.generate_content(
-            model="gemini-1.5-flash",  # Text-capable model
+            model="gemini-1.5-flash",
             config=types.GenerateContentConfig(system_instruction=prompt),
             contents=q
         )
-        st.session_state.answer = res.text
+        # Split response into takeaway and answer
+        response_text = res.text
+        takeaway, answer = response_text.split("Answer to question:", 1)
+        st.session_state.takeaway = takeaway.replace("Takeaway:", "").strip()
+        st.session_state.answer = answer.strip()
     except Exception as e:
-        st.error(f"Error generating text answer: {str(e)}")
+        st.error(f"Error generating text answer or takeaway: {str(e)}")
         return
 
     # Call Gemini for image generation based on the answer
     try:
         image_prompt = f"Create a visual representation of the following concept: {st.session_state.answer}"
         image_res = client.models.generate_content(
-            model="gemini-2.0-flash-preview-image-generation",  # Image-generative model
+            model="gemini-2.0-flash-preview-image-generation",
             contents=image_prompt,
             config=types.GenerateContentConfig(
-                response_modalities=['IMAGE', 'TEXT']  # Required by the model
+                response_modalities=['IMAGE', 'TEXT']
             )
         )
         # Extract image data, ignore text
@@ -314,6 +317,10 @@ if "answer" in st.session_state:
 
     st.markdown("---")
     st.markdown(f"**Your question:** {st.session_state.question}")
+
+    # Display the card takeaway
+    st.markdown("### 🎴 Card Takeaway")
+    st.write(st.session_state.takeaway)
 
     # Display the text answer
     st.markdown("### 💡 Answer")
