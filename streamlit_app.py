@@ -263,6 +263,7 @@ def ask_koolbox():
         "Provide a brief takeaway (1-2 sentences) summarizing the card's theme, followed by 'Answer to question:' and an answer to the question based on the card. "
         "Keep both concise and strip all markup styling. "
         "If the user asks in Chinese, reply in Chinese zh-hk."
+        "If the card is not directly related, please still make up an insight that suit."
         f"\n\nTakeaway:\nAnswer to question: {q}"
     )
 
