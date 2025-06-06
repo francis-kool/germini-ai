@@ -230,7 +230,12 @@ cards = {
 st.set_page_config(page_title="🎴 KoolBox", layout="centered")
 st.title("🎴 KoolBox")
 
-# ─── If we already have an answer in session_state, show results ───────────────
+# ─── Reset callback ─────────────────────────────────────────────────────────────
+def reset():
+    for k in ["question", "card_key", "answer"]:
+        st.session_state.pop(k, None)
+
+# ─── 1) If we have an answer, show it and the “New Session” form ──────────────
 if "answer" in st.session_state:
     card = cards[st.session_state.card_key]
 
@@ -243,46 +248,48 @@ if "answer" in st.session_state:
     st.write(st.session_state.answer)
 
     st.markdown("---")
-    if st.button("🔄 New Session"):
-        for k in ["question_input", "question", "card_key", "answer"]:
-            st.session_state.pop(k, None)
-        # no need to rerun manually; on next interaction the "ask" form will appear
+    # New Session as a form with a single button
+    with st.form("new_session_form", clear_on_submit=True):
+        new_sess = st.form_submit_button("🔄 New Session")
+        if new_sess:
+            reset()
     st.stop()
 
-# ─── Otherwise, show the “ask” form ─────────────────────────────────────────────
-q = st.text_area("Ask KoolBox…", height=120, key="question_input")
+# ─── 2) Otherwise show the “Ask KoolBox” form ──────────────────────────────────
+with st.form("ask_form", clear_on_submit=False):
+    q = st.text_area("Ask KoolBox…", height=120)
+    submit = st.form_submit_button("🗣️ Ask KoolBox")
 
-if st.button("🗣️ Ask KoolBox"):
-    if not q.strip():
-        st.warning("Please type a question first.")
-    else:
-        # 1) store the question
-        st.session_state.question = q.strip()
+    if submit:
+        if not q.strip():
+            st.warning("Please type a question first.")
+        else:
+            # store question
+            st.session_state.question = q.strip()
 
-        # 2) draw a random card
-        key = random.choice(list(cards.keys()))
-        st.session_state.card_key = key
-        card = cards[key]
+            # draw a random card
+            key = random.choice(list(cards.keys()))
+            st.session_state.card_key = key
+            card = cards[key]
 
-        # 3) build the prompt
-        prompt = (
-            f"{card['title']}\n"
-            f"{card['content']}\n\n"
-            "You will describe what the card is about and answer the question "
-            "based on this and come up with a positive answer. "
-            "Keep it concise and strip all markup styling.\n\n"
-            f"Question: {q.strip()}"
-        )
+            # build prompt
+            prompt = (
+                f"{card['title']}\n"
+                f"{card['content']}\n\n"
+                "You will describe what the card is about and answer the question "
+                "based on this and come up with a positive answer. "
+                "Keep it concise and strip all markup styling.\n\n"
+                f"Question: {q.strip()}"
+            )
 
-        # 4) call Gemini
-        res = client.models.generate_content(
-            model="gemini-2.0-flash",
-            config=types.GenerateContentConfig(system_instruction=prompt),
-            contents=q.strip()
-        )
+            # call Gemini
+            res = client.models.generate_content(
+                model="gemini-2.0-flash",
+                config=types.GenerateContentConfig(system_instruction=prompt),
+                contents=q.strip()
+            )
 
-        # 5) store the answer, causing the top‐branch to render on next rerun
-        st.session_state.answer = res.text
+            # store the answer
+            st.session_state.answer = res.text
 
-        # Note: we do NOT need st.experimental_rerun(); Streamlit will
-        # re-render the script immediately and fall into the “answer” branch.
+            # no need for explicit rerun—Streamlit will re-render in “answer” branch
