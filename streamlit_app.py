@@ -283,13 +283,13 @@ def ask_koolbox():
     try:
         image_prompt = f"Create a visual representation of the following concept: {st.session_state.answer}"
         image_res = client.models.generate_content(
-            model="gemini-2.0-flash-preview-image-generation",  # Replace with your image-capable model
+            model="gemini-2.0-flash-preview-image-generation",  # Your image-generative model
             contents=image_prompt,
             config=types.GenerateContentConfig(
-                response_modalities=['IMAGE']  # Request only image output
+                response_modalities=['IMAGE', 'TEXT']  # Required by the model
             )
         )
-        # Extract image data
+        # Extract image data, ignore text
         for part in image_res.candidates[0].content.parts:
             if part.inline_data is not None:
                 st.session_state.generated_image = part.inline_data.data
